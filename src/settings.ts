@@ -456,6 +456,28 @@ export class NodesSettings extends FormattingSettingsSimpleCard implements IHand
     });
 }
 
+export class GroupSettings extends FormattingSettingsSimpleCard {
+    public name: string = "groups";
+    public displayName: string = "Groups";
+    public displayNameKey: string = "Visual_Groups";
+
+    public defaultCollapsed = new formattingSettings.ToggleSwitch({
+        name: "defaultCollapsed",
+        displayName: "Collapse by default",
+        displayNameKey: "Visual_DefaultCollapsed",
+        value: false
+    });
+
+    public showLabels = new formattingSettings.ToggleSwitch({
+        name: "showGroupLabels",
+        displayName: "Show group labels",
+        displayNameKey: "Visual_ShowGroupLabels",
+        value: true
+    });
+
+    public slices: FormattingSettingsSlice[] = [this.defaultCollapsed, this.showLabels];
+}
+
 export class ScaleSettings extends FormattingSettingsSimpleCard {
     public provideMinHeight = new formattingSettings.ToggleSwitch({
         name: "provideMinHeight",
@@ -576,11 +598,12 @@ export class SankeyDiagramSettings extends FormattingSettingsModel {
     public linkLabels: LinkLabelsSettings = new LinkLabelsSettings();
     public links: LinksSettings = new LinksSettings();
     public nodes: NodesSettings = new NodesSettings();
+    public groups: GroupSettings = new GroupSettings();
     public scale: ScaleSettings = new ScaleSettings();
     public layout: LayoutSettings = new LayoutSettings();
     public cyclesLinks: CyclesLinkSettings = new CyclesLinkSettings();
     public nodeComplexSettings: NodeComplexSettings = new NodeComplexSettings();
-    public cards: FormattingSettingsCards[] = [this.labels, this.linkLabels, this.links, this.nodes, this.scale, this.layout, this.cyclesLinks, this.nodeComplexSettings];
+    public cards: FormattingSettingsCards[] = [this.labels, this.linkLabels, this.links, this.nodes, this.groups, this.scale, this.layout, this.cyclesLinks, this.nodeComplexSettings];
 
     populateNodesColorSelector(nodes: SankeyDiagramNode[]) {
         const containerItems = this.nodes.container.containerItems;

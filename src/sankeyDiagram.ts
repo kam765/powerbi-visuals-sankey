@@ -131,6 +131,11 @@ export class SankeyDiagram implements IVisual {
     private static NodeRectSelector: ClassAndSelector = createClassAndSelector("nodeRect");
     private static NodeLabelSelector: ClassAndSelector = createClassAndSelector("nodeLabel");
 
+    private static GroupsSelector: ClassAndSelector = createClassAndSelector("groups");
+    private static GroupSelector: ClassAndSelector = createClassAndSelector("group");
+    private static GroupRectSelector: ClassAndSelector = createClassAndSelector("groupRect");
+    private static GroupLabelSelector: ClassAndSelector = createClassAndSelector("groupLabel");
+
     private static LinksSelector: ClassAndSelector = createClassAndSelector("links");
     private static LinkSelector: ClassAndSelector = createClassAndSelector("link");
     private static BackwardLinkSelector: ClassAndSelector = createClassAndSelector("linkBackward");
@@ -247,6 +252,7 @@ export class SankeyDiagram implements IVisual {
     private main: Selection<any>;
     private nodes: Selection<SankeyDiagramNode>;
     private links: Selection<SankeyDiagramLink>;
+    private groups: Selection<any>;
     private resetButton: Selection<any>;
 
     private colorPalette: IColorPalette;
@@ -322,6 +328,10 @@ export class SankeyDiagram implements IVisual {
         this.fontFamily = this.root.style("font-family");
 
         this.main = this.root.append("g");
+
+        this.groups = this.main
+            .append("g")
+            .classed(SankeyDiagram.GroupsSelector.className, true);
 
         this.links = this.main
             .append("g")
@@ -482,6 +492,11 @@ export class SankeyDiagram implements IVisual {
 
         const label: SankeyDiagramLabel = SankeyDiagram.createLabel(settings.labels, name);
 
+        const groupId: string = (node.objects && (<any>node.objects).group && (<any>node.objects).group.groupId)
+            ? (<any>node.objects).group.groupId.toString()
+            : undefined;
+        const collapsed: boolean = groupId ? settings.groups.defaultCollapsed.value : false;
+
         return {
             label: label,
             links: [],
@@ -498,7 +513,9 @@ export class SankeyDiagram implements IVisual {
             settings: null,
             linkSelectableIds: [],
             selectionId: null,
-            selected: false
+            selected: false,
+            groupId: groupId,
+            collapsed: collapsed
         }
     }
 
@@ -1766,11 +1783,78 @@ export class SankeyDiagram implements IVisual {
 
         this.renderTooltip(linksSelection);
 
+        this.renderGroups(sankeyDiagramDataView, settings);
+
         const nodesSelection: Selection<SankeyDiagramNode> = this.renderNodes(sankeyDiagramDataView, settings);
 
         this.renderTooltip(nodesSelection);
 
         this.bindSelectionHandler(nodesSelection, linksSelection);
+    }
+
+    private renderGroups(sankeyDiagramDataView: SankeyDiagramDataView, settings: SankeyDiagramSettings): void {
+        const groupsMap: { [key: string]: SankeyDiagramNode[] } = {};
+        sankeyDiagramDataView.nodes
+            .filter((n: SankeyDiagramNode) => n.groupId)
+            .forEach((n: SankeyDiagramNode) => {
+                if (!groupsMap[n.groupId]) {
+                    groupsMap[n.groupId] = [];
+                }
+                groupsMap[n.groupId].push(n);
+            });
+
+        const groupsData = Object.keys(groupsMap).map(id => ({
+            id,
+            nodes: groupsMap[id],
+            collapsed: groupsMap[id][0].collapsed
+        }));
+
+        const groupElements = this.groups
+            .selectAll(SankeyDiagram.GroupSelector.selectorName)
+            .data(groupsData, (d: any) => d.id)
+            .join("g")
+            .classed(SankeyDiagram.GroupSelector.className, true);
+
+        groupElements
+            .selectAll(SankeyDiagram.GroupRectSelector.selectorName)
+            .data(d => [d])
+            .join("rect")
+            .classed(SankeyDiagram.GroupRectSelector.className, true)
+            .attr("x", d => d3Min(d.nodes.map((n: SankeyDiagramNode) => n.x)))
+            .attr("y", d => d3Min(d.nodes.map((n: SankeyDiagramNode) => n.y)))
+            .attr("width", d => d3Max(d.nodes.map((n: SankeyDiagramNode) => n.x + n.width)) - d3Min(d.nodes.map((n: SankeyDiagramNode) => n.x)))
+            .attr("height", d => d3Max(d.nodes.map((n: SankeyDiagramNode) => n.y + n.height)) - d3Min(d.nodes.map((n: SankeyDiagramNode) => n.y)))
+            .style("fill", "none")
+            .style("stroke", "#999");
+
+        groupElements
+            .selectAll(SankeyDiagram.GroupLabelSelector.selectorName)
+            .data(d => [d])
+            .join("text")
+            .classed(SankeyDiagram.GroupLabelSelector.className, true)
+            .style("display", settings.groups.showLabels.value ? null : SankeyDiagram.DisplayNone)
+            .attr("x", d => d3Min(d.nodes.map((n: SankeyDiagramNode) => n.x)))
+            .attr("y", d => d3Min(d.nodes.map((n: SankeyDiagramNode) => n.y)) - SankeyDiagram.NodeMargin)
+            .text(d => d.id);
+
+        groupElements.on("click", (_event, d) => {
+            const collapsed = !d.collapsed;
+            d.collapsed = collapsed;
+            d.nodes.forEach((n: SankeyDiagramNode) => n.collapsed = collapsed);
+
+            this.nodes
+                .selectAll(SankeyDiagram.NodeSelector.selectorName)
+                .filter((n: SankeyDiagramNode) => n.groupId === d.id)
+                .style("display", collapsed ? SankeyDiagram.DisplayNone : null);
+
+            this.links
+                .selectAll(SankeyDiagram.LinkSelector.selectorName)
+                .style("display", (l: SankeyDiagramLink) => l.source.collapsed || l.destination.collapsed ? SankeyDiagram.DisplayNone : null);
+
+            this.links
+                .selectAll(SankeyDiagram.LinkLabelTextsSelector.selectorName)
+                .style("display", (l: SankeyDiagramLink) => l.source.collapsed || l.destination.collapsed ? SankeyDiagram.DisplayNone : null);
+        });
     }
 
     private renderNodes(sankeyDiagramDataView: SankeyDiagramDataView, settings: SankeyDiagramSettings): Selection<SankeyDiagramNode> {
@@ -1786,7 +1870,8 @@ export class SankeyDiagram implements IVisual {
             .attr("transform", (node: SankeyDiagramNode) => {
                 return translate(node.x, node.y);
             })
-            .classed(SankeyDiagram.NodeSelector.className, true);
+            .classed(SankeyDiagram.NodeSelector.className, true)
+            .style("display", (node: SankeyDiagramNode) => node.collapsed ? SankeyDiagram.DisplayNone : null);
 
         //add rectangles
         let nodeTabIndex: number = 0;
@@ -2067,7 +2152,8 @@ export class SankeyDiagram implements IVisual {
             .style("stroke", (link: SankeyDiagramLink) => link.strokeColor)
             .style("stroke-width", this.sankeyDiagramSettings.links.defaultContainerItem.border.show.value ? this.sankeyDiagramSettings.links.defaultContainerItem.border.width.value + "px" : "0px")
             .style("fill", (link: SankeyDiagramLink) => link.fillColor)
-            .classed(SankeyDiagram.StrokeVisibleClass.className, !this.sankeyDiagramSettings.links.defaultContainerItem.border.show.value && this.colorHelper.isHighContrast);
+            .classed(SankeyDiagram.StrokeVisibleClass.className, !this.sankeyDiagramSettings.links.defaultContainerItem.border.show.value && this.colorHelper.isHighContrast)
+            .style("display", (link: SankeyDiagramLink) => link.source.collapsed || link.destination.collapsed ? SankeyDiagram.DisplayNone : null);
 
         return linksElements;
     }
@@ -2079,11 +2165,11 @@ export class SankeyDiagram implements IVisual {
     private renderLinkLabels(sankeyDiagramDataView: SankeyDiagramDataView, settings: SankeyDiagramSettings): void {
         // create labels on link as A - B : Value
         const linkTextData: SankeyDiagramLink[] = sankeyDiagramDataView.links.filter((link: SankeyDiagramLink) => {
-            return link.height > SankeyDiagram.MinSize && settings.linkLabels.show.value;
+            return link.height > SankeyDiagram.MinSize && settings.linkLabels.show.value && !(link.source.collapsed || link.destination.collapsed);
         });
 
         const linkArrowData: SankeyDiagramLink[] = sankeyDiagramDataView.links.filter((link: SankeyDiagramLink) => {
-            return link.height > SankeyDiagram.MinSize && link.direction !== SankeyLinkDirrections.SelfLink;
+            return link.height > SankeyDiagram.MinSize && link.direction !== SankeyLinkDirrections.SelfLink && !(link.source.collapsed || link.destination.collapsed);
         });
 
         // add text path for lables
