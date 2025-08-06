@@ -65,7 +65,12 @@
                                 "to": "Destination"
                             }
                         }
-                    ]
+                    ],
+                    "dataReductionAlgorithm": {
+                        "top": {
+                            "count": 30000
+                        }
+                    }
                 },
                 "values": {
                     "select": [
