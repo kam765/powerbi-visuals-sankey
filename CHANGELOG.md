@@ -1,3 +1,8 @@
+## 3.5.1.0
+
+### New features
+* Added compact layout option to minimize link intersections
+
 ## 3.5.0.0
 
 ### New features

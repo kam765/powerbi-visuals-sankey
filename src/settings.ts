@@ -477,6 +477,19 @@ export class ScaleSettings extends FormattingSettingsSimpleCard {
     public slices: FormattingSettingsSlice[] = [this.provideMinHeight, this.lnScale];
 }
 
+export class LayoutSettings extends FormattingSettingsSimpleCard {
+    public compactLayout = new formattingSettings.ToggleSwitch({
+        name: "compactLayout",
+        displayName: "Compact layout",
+        displayNameKey: "Visual_CompactLayout",
+        value: false
+    });
+
+    public name: string = "layout";
+    public displayNameKey: string = "Visual_Layout";
+    public slices: FormattingSettingsSlice[] = [this.compactLayout];
+}
+
 class PersistPropertiesGroup extends FormattingSettingsSimpleCard {
     public name: string = "persistProperties";
     public displayNameKey: string = "Visual_NodePositions";
@@ -564,9 +577,10 @@ export class SankeyDiagramSettings extends FormattingSettingsModel {
     public links: LinksSettings = new LinksSettings();
     public nodes: NodesSettings = new NodesSettings();
     public scale: ScaleSettings = new ScaleSettings();
+    public layout: LayoutSettings = new LayoutSettings();
     public cyclesLinks: CyclesLinkSettings = new CyclesLinkSettings();
     public nodeComplexSettings: NodeComplexSettings = new NodeComplexSettings();
-    public cards: FormattingSettingsCards[] = [this.labels, this.linkLabels, this.links, this.nodes, this.scale, this.cyclesLinks, this.nodeComplexSettings];
+    public cards: FormattingSettingsCards[] = [this.labels, this.linkLabels, this.links, this.nodes, this.scale, this.layout, this.cyclesLinks, this.nodeComplexSettings];
 
     populateNodesColorSelector(nodes: SankeyDiagramNode[]) {
         const containerItems = this.nodes.container.containerItems;
