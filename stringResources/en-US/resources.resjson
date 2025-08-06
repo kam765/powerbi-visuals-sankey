@@ -59,5 +59,7 @@
 	"Visual_BorderDisabledReason": "These options are available when Links is set to \"All\"",
 	"Visual_NodeWidthDisabledReason": "These options are available when \"Nodes\" is set to \"All\"",
 	"Visual_Option": "Option",
-	"Visual_ColorDisabledDescription": "This option is available when \"High contrast colors\" is set to \"None\""
+        "Visual_ColorDisabledDescription": "This option is available when \"High contrast colors\" is set to \"None\"",
+        "Visual_Layout": "Layout",
+        "Visual_CompactLayout": "Compact layout"
 }

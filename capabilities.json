@@ -265,6 +265,15 @@
                 }
             }
         },
+        "layout": {
+            "properties": {
+                "compactLayout": {
+                    "type": {
+                        "bool": true
+                    }
+                }
+            }
+        },
         "nodeComplexSettings": {
             "properties": {
                 "nodePositions": {

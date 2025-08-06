@@ -1285,12 +1285,54 @@ export class SankeyDiagram implements IVisual {
 
         // adjust vertical position of nodes in each column
         for (const columnNodes of columns.values()) {
-            this.adjustColumnVerticalPosition(columnNodes, nodeWidth);
+            this.adjustColumnVerticalPosition(columnNodes, nodeWidth, settings.layout.compactLayout.value);
         }
     }
 
-    private adjustColumnVerticalPosition(columnNodes: SankeyDiagramNode[], nodeWidth: number): void {
+    private adjustColumnVerticalPosition(columnNodes: SankeyDiagramNode[], nodeWidth: number, compact: boolean): void {
         if (columnNodes.length === 0) {
+            return;
+        }
+
+        if (compact) {
+            const getBarycenter = (node: SankeyDiagramNode): number => {
+                let sum = 0;
+                let weight = 0;
+                node.links.forEach((l: SankeyDiagramLink) => {
+                    const other = l.source === node ? l.destination : l.source;
+                    sum += (other.y + other.height / 2) * l.weight;
+                    weight += l.weight;
+                });
+                return weight ? sum / weight : node.y + node.height / 2;
+            };
+
+            columnNodes.sort((a, b) => getBarycenter(a) - getBarycenter(b));
+            columnNodes.forEach(n => n.y = getBarycenter(n) - n.height / 2);
+
+            for (let i = 1; i < columnNodes.length; i++) {
+                const prev = columnNodes[i - 1];
+                const curr = columnNodes[i];
+                const minY = prev.y + prev.height + SankeyDiagram.NodeOffsetFactor;
+                if (curr.y < minY) {
+                    curr.y = minY;
+                }
+            }
+
+            const last = columnNodes[columnNodes.length - 1];
+            let overflow = last.y + last.height - this.viewport.height;
+            if (overflow > 0) {
+                for (let i = columnNodes.length - 1; i >= 0; i--) {
+                    columnNodes[i].y -= overflow;
+                    if (i > 0) {
+                        const prev = columnNodes[i - 1];
+                        const minY = prev.y + prev.height + SankeyDiagram.NodeOffsetFactor;
+                        if (columnNodes[i].y < minY) {
+                            overflow -= minY - columnNodes[i].y;
+                            columnNodes[i].y = minY;
+                        }
+                    }
+                }
+            }
             return;
         }
 
@@ -1302,7 +1344,6 @@ export class SankeyDiagram implements IVisual {
             return first.x - second.x;
         });
 
-        // getting rid of overlaps in the column
         for (let i = 1; i < columnNodes.length; i++) {
             const previousNode = columnNodes[i - 1];
             const currentNode = columnNodes[i];
@@ -1315,12 +1356,10 @@ export class SankeyDiagram implements IVisual {
             }
         }
 
-        // check if the last node in the column overflows the viewport
         const lastNode: SankeyDiagramNode = columnNodes[columnNodes.length - 1];
         let upwardShift: number = this.viewport.height - (lastNode.y + lastNode.height);
         upwardShift = upwardShift > 0 ? 0 : upwardShift;
 
-        // Propagate the upward shift from bottom to top, adjusting to prevent overlaps.
         for (let i: number = columnNodes.length - 1; i > 0; i--) {
             columnNodes[i].y += upwardShift;
             const previousNode: SankeyDiagramNode = columnNodes[i - 1];
@@ -1330,7 +1369,6 @@ export class SankeyDiagram implements IVisual {
                 upwardShift = 0;
                 continue;
             }
-            // The previous node needs to be shifted up to avoid overlap.
             upwardShift = columnNodes[i].y - SankeyDiagram.NodeOffsetFactor - previousNode.height - previousNode.y;
         }
 
@@ -1589,7 +1627,9 @@ export class SankeyDiagram implements IVisual {
             if (columns[currentX]) {
                 availableHeight = viewport.height - columns[currentX].sumValueOfNodes * scale.y;
 
-                offsetByY = availableHeight / columns[currentX].countOfNodes;
+                offsetByY = settings.layout.compactLayout.value
+                    ? SankeyDiagram.DefaultOffset
+                    : availableHeight / columns[currentX].countOfNodes;
             }
 
             node.x = SankeyDiagram.calculateNodeX(node, scale, settings, viewport);
