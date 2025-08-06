@@ -215,6 +215,8 @@ export class SankeyDiagram implements IVisual {
 
     private static BackwardPsudoNodeMargin: number = 5;
 
+    private static ScrollNodeMinHeight: number = 20;
+
     public static RoleNames: SankeyDiagramRoleNames = {
         rows: "Source",
         columns: "Destination",
@@ -238,6 +240,7 @@ export class SankeyDiagram implements IVisual {
     private static NodeAndBackwardLinkDistance: number = 5;
     private static DistanceBetweenLinks: number = 3;
 
+    private rootContainer: Selection<any>;
     private root: Selection<any>;
     private clearCatcher: Selection<any>;
     private defs: Selection<any>;
@@ -294,7 +297,11 @@ export class SankeyDiagram implements IVisual {
         this.localizationManager = this.visualHost.createLocalizationManager();
         this.formattingSettingsService = new FormattingSettingsService(this.localizationManager);
 
-        this.root = d3Select(options.element)
+        this.rootContainer = d3Select(options.element)
+            .classed("sankeyDiagramContainer", true)
+            .style("overflow-y", "auto");
+
+        this.root = this.rootContainer
             .append("svg")
             .classed(SankeyDiagram.ClassName, true);
 
@@ -364,9 +371,9 @@ export class SankeyDiagram implements IVisual {
 
         this.sankeyDiagramSettings = this.parseSettings(dataView);
 
-        this.updateViewport(visualUpdateOptions.viewport, this.sankeyDiagramSettings);
-
         const sankeyDiagramDataView: SankeyDiagramDataView = this.converter(dataView);
+
+        this.updateViewport(visualUpdateOptions.viewport, this.sankeyDiagramSettings, sankeyDiagramDataView);
 
         this.computePositions(sankeyDiagramDataView, this.sankeyDiagramSettings);
 
@@ -381,7 +388,7 @@ export class SankeyDiagram implements IVisual {
         return this.formattingSettingsService.buildFormattingModel(this.sankeyDiagramSettings);
     }
 
-    private updateViewport(viewport: IViewport, settings: SankeyDiagramSettings): void {
+    private updateViewport(viewport: IViewport, settings: SankeyDiagramSettings, dataView: SankeyDiagramDataView): void {
         const height: number = SankeyDiagram.getPositiveNumber(viewport.height);
         const width: number = SankeyDiagram.getPositiveNumber(viewport.width);
 
@@ -400,12 +407,24 @@ export class SankeyDiagram implements IVisual {
             }
         }
 
+        let viewportHeight: number = SankeyDiagram.getPositiveNumber(height - this.margin.top - this.margin.bottom - viewportShiftY);
+
+        const estimatedHeight: number = dataView && dataView.nodes
+            ? dataView.nodes.length * (SankeyDiagram.ScrollNodeMinHeight + SankeyDiagram.NodeMargin)
+            : 0;
+
+        if (estimatedHeight > viewportHeight) {
+            viewportHeight = estimatedHeight;
+        }
+
         this.viewport = {
-            height: SankeyDiagram.getPositiveNumber(height - this.margin.top - this.margin.bottom - viewportShiftY),
+            height: viewportHeight,
             width: SankeyDiagram.getPositiveNumber(width - this.margin.left - this.margin.right)
         };
 
-        this.updateElements(height, width, mainShiftY, settings.nodeComplexSettings.button);
+        const svgHeight: number = viewportHeight + this.margin.top + this.margin.bottom + viewportShiftY;
+
+        this.updateElements(svgHeight, width, mainShiftY, settings.nodeComplexSettings.button);
     }
 
     public static getPositiveNumber(value: number): number {
