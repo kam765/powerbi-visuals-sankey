@@ -92,6 +92,8 @@ export interface SankeyDiagramNode extends
     cloneLink?: SankeyDiagramNode;
     settings?: SankeyDiagramNodeSetting;
     linkSelectableIds?: ISelectionId[];
+    groupId?: string;
+    collapsed?: boolean;
 }
 
 export interface SankeyDiagramLink extends
