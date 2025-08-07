@@ -1333,6 +1333,19 @@ export class SankeyDiagram implements IVisual {
                     }
                 }
             }
+
+            // Ensure nodes fit within viewport after adjustments
+            const firstNode = columnNodes[0];
+            if (firstNode.y < 0) {
+                const offset = -firstNode.y;
+                columnNodes.forEach(node => node.y += offset);
+            }
+
+            const lastNode = columnNodes[columnNodes.length - 1];
+            const bottomOverflow = lastNode.y + lastNode.height - this.viewport.height;
+            if (bottomOverflow > 0) {
+                columnNodes.forEach(node => node.y -= bottomOverflow);
+            }
             return;
         }
 
